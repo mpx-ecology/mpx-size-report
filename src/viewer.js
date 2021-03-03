@@ -28,6 +28,7 @@ async function startServer(bundleStats, opts) {
   app.use(express.static(`${projectRoot}/public`));
 
   app.use('/sizeReport', (req, res) => {
+    console.log('req router trigger')
     res.render('viewer.ejs', {
       mode: 'server',
       title: 'Mpx Size Report',
@@ -99,22 +100,31 @@ async function startServer(bundleStats, opts) {
   const server = http.createServer(app)
 
   await new Promise(resolve => {
-    server.listen(port, host, () => {
-      resolve()
-      const url = `http://${host}:${server.address().port}`
-      if (openBrowser) {
-        opener(url)
+    server.listen(port, host, (err) => {
+      if (!err) {
+        resolve()
+        const url = `http://${host}:${server.address().port}`
+        if (openBrowser) {
+          opener(url)
+        }
       }
+    })
+    server.on('error', (e) => {
+      console.log('listen error', e)
+      setTimeout(() => {
+        server.close();
+        server.listen(0, host, (err) => {
+          resolve()
+          const url = `http://${host}:${server.address().port}`
+          if (openBrowser) {
+            opener(url)
+          }
+        })
+      }, 1000)
     })
   })
   // ws 长链接监控
 }
-
-// startServer({}, {
-//   port: 8888,
-//   host: '127.0.0.1',
-//   openBrowser: true
-// })
 
 module.exports = {
   startServer,

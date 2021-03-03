@@ -12,10 +12,9 @@ class SizeReportPlugin {
       openReport: true,
       serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 9999
     }
-
     this.server = null
-
   }
+
   apply(compiler) {
     this.compiler = compiler
 
@@ -23,17 +22,6 @@ class SizeReportPlugin {
       callback = callback || (() => {})
       await this.startSizeReportServer(stats)
       callback()
-      // setImmediate(async () => {
-      //   try{
-      //     await Promise.all([() => {
-      //       this.startSizeReportServer(stats)
-      //     }])
-      //     callback()
-      //   } catch (e) {
-      //     console.log('ERRRO')
-      //     callback(e)
-      //   }
-      // })
     }
 
     if (compiler.hooks) {
@@ -50,11 +38,7 @@ class SizeReportPlugin {
       port: this.opts.serverPort,
       reportTitle: this.opts.reportTitle,
       readFilePath: this.opts.readFilePath
-      // bundleDir: this.getBundleDirFromCompiler(),
-      // logger: this.logger,
-      // defaultSizes: this.opts.defaultSizes,
-      // excludeAssets: this.opts.excludeAssets
-    });
+    })
   }
 }
 
