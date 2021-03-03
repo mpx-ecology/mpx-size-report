@@ -1,6 +1,6 @@
 {
   "name": "@didi/mpx-size-report",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "mpx size report plugin",
   "main": "index.js",
   "scripts": {
