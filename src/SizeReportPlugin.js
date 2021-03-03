@@ -8,6 +8,7 @@ class SizeReportPlugin {
       reportMode: 'server',
       reportHost: '127.0.0.1',
       reportTitle: utils.defaultTitle,
+      readFilePath: opts.readFilePath || '',
       openReport: true,
       serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 8888
     }
@@ -18,19 +19,21 @@ class SizeReportPlugin {
   apply(compiler) {
     this.compiler = compiler
 
-    const done = (stats, callback) => {
+    const done = async (stats, callback) => {
       callback = callback || (() => {})
-
-      setImmediate(async () => {
-        try{
-          await Promise.all(() => {
-            this.startSizeReportServer(stats)
-          })
-          callback()
-        } catch (e) {
-          callback(e)
-        }
-      })
+      await this.startSizeReportServer(stats)
+      callback()
+      // setImmediate(async () => {
+      //   try{
+      //     await Promise.all([() => {
+      //       this.startSizeReportServer(stats)
+      //     }])
+      //     callback()
+      //   } catch (e) {
+      //     console.log('ERRRO')
+      //     callback(e)
+      //   }
+      // })
     }
 
     if (compiler.hooks) {
@@ -41,20 +44,17 @@ class SizeReportPlugin {
   }
 
   async startSizeReportServer(stats) {
-    if (this.server) {
-      (await this.server).updateChartData(stats);
-    } else {
-      this.server = viewer.startServer(stats, {
-        openBrowser: this.opts.openReport,
-        host: this.opts.reportHost,
-        port: this.opts.serverPort,
-        reportTitle: this.opts.reportTitle,
-        // bundleDir: this.getBundleDirFromCompiler(),
-        // logger: this.logger,
-        // defaultSizes: this.opts.defaultSizes,
-        // excludeAssets: this.opts.excludeAssets
-      });
-    }
+    this.server = viewer.startServer(stats, {
+      openBrowser: this.opts.openReport,
+      host: this.opts.reportHost,
+      port: this.opts.serverPort,
+      reportTitle: this.opts.reportTitle,
+      readFilePath: this.opts.readFilePath
+      // bundleDir: this.getBundleDirFromCompiler(),
+      // logger: this.logger,
+      // defaultSizes: this.opts.defaultSizes,
+      // excludeAssets: this.opts.excludeAssets
+    });
   }
 }
 

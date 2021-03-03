@@ -1,4 +1,4 @@
 
-module.exports = {
-  BundleAnalyzerPlugin: require('./SizeReportPlugin')
-};
+const MpxSizeReportPlugin = require('./SizeReportPlugin')
+
+module.exports = MpxSizeReportPlugin
