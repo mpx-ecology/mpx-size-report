@@ -1,0 +1,30 @@
+{
+  "name": "@didi/mpx-size-report",
+  "version": "1.0.0",
+  "description": "mpx size report plugin",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.xiaojukeji.com:fe-opensource/mpx-size-report.git"
+  },
+  "keywords": [
+    "mpx",
+    "javascript",
+    "vue",
+    "miniprogram",
+    "sizeReport",
+    "bundle",
+    "analyzer"
+  ],
+  "author": "xuegan@didiglobal.com",
+  "license": "ISC",
+  "dependencies": {
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "opener": "^1.5.2",
+    "ws": "^7.4.3"
+  }
+}
