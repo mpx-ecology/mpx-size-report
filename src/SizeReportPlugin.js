@@ -10,7 +10,7 @@ class SizeReportPlugin {
       reportTitle: utils.defaultTitle,
       readFilePath: opts.readFilePath || '',
       openReport: true,
-      serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 8888
+      serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 9999
     }
 
     this.server = null
