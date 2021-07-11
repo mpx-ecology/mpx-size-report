@@ -1,13 +1,16 @@
 
 const utils = require('./utils')
 const viewer = require('./viewer')
+const path = require('path')
 const matchCondition = require('./utils/match-condition')
 const parseRequest = require('./utils/parse-request')
+const parseAsset = require('./utils/parse-asset')
+
 
 
 class SizeReportPlugin {
   constructor(opts = {}) {
-    this.opts = {
+    this.options = {
       reportMode: 'server',
       reportHost: '127.0.0.1',
       reportTitle: utils.defaultTitle,
@@ -24,6 +27,7 @@ class SizeReportPlugin {
   }
   apply(compiler) {
     this.compiler = compiler
+
     function every (set, fn) {
       for (const item of set) {
         if (!fn(item)) return false
@@ -39,38 +43,76 @@ class SizeReportPlugin {
     }
 
     function map (set, fn) {
-
+      const result = new Set()
+      set.forEach((item) => {
+        result.add(fn(item))
+      })
+      return result
     }
 
     function filter (set, fn) {
-
+      const result = new Set()
+      set.forEach((item) => {
+        if (fn(item)) {
+          result.add(item)
+        }
+      })
+      return result
     }
 
     function concat (setA, setB) {
-
+      const result = new Set()
+      setA.forEach((item) => {
+        result.add(item)
+      })
+      setB.forEach((item) => {
+        result.add(item)
+      })
+      return result
     }
 
     function mapToArr (set, fn) {
-
+      const result = []
+      set.forEach((item) => {
+        result.push(fn(item))
+      })
+      return result
     }
 
     function walkEntry (entryModule, sideEffect) {
-      const moduleSet = new Set()
+      const modulesSet = new Set()
 
-      function walkDependencies (module, dependencies = []) {
+      function walkDependencies (dependencies = []) {
         dependencies.forEach((dep) => {
+          // // We skip Dependencies without Reference
+          // const ref = compilation.getDependencyReference(module, dep)
+          // if (!ref) {
+          //   return
+          // }
+          // // We skip Dependencies without Module pointer
+          // const refModule = ref.module
+          // if (!refModule) {
+          //   return
+          // }
+          // // We skip weak Dependencies
+          // if (ref.weak) {
+          //   return
+          // }
           const refModule = dep.module || dep.removedModule || dep.childCompileEntryModule
           if (refModule) walk(refModule)
         })
       }
 
       function walk (module) {
-        if (moduleSet.has(module)) return
+        if (modulesSet.has(module)) return
         sideEffect && sideEffect(module, entryModule)
-        moduleSet.add(module)
-        walkDependencies(module, module.dependencies)
+        modulesSet.add(module)
+        walkDependencies(module.dependencies)
+        module.blocks.forEach((block) => {
+          walkDependencies(block.dependencies)
+        })
         module.variables.forEach((variable) => {
-          walkDependencies(module, variable.dependencies)
+          walkDependencies(variable.dependencies)
         })
       }
 
@@ -80,13 +122,12 @@ class SizeReportPlugin {
     const done = async (stats, callback) => {
       const compilation = stats.compilation
       const mpx = compilation.__mpx__
-      const reportGroups = this.opts.reportSize.groups || []
+      const reportGroups = this.options.reportSize.groups || []
 
       const reportGroupsWithNoEntryRules = reportGroups.filter((reportGroup) => {
         return reportGroup.hasOwnProperty('noEntryRules')
       })
 
-      console.log(compilation)
       // Walk and mark entryModules/noEntryModules
       compilation.chunks.forEach((chunk) => {
         if (chunk.entryModule) {
@@ -496,9 +537,10 @@ class SizeReportPlugin {
       const reportFilePath = path.resolve(compiler.outputPath, this.options.reportSize.filename || 'report.json')
       compiler.outputFileSystem.mkdirp(path.dirname(reportFilePath), (err) => {
         if (err) return callback(err)
-        compiler.outputFileSystem.writeFile(reportFilePath, JSON.stringify(reportData, null, 2), (err) => {
+        compiler.outputFileSystem.writeFile(reportFilePath, JSON.stringify(reportData, null, 2), async (err) => {
           const logger = compilation.getLogger('MpxWebpackPlugin')
           logger.info(`Size report is generated in ${reportFilePath}!`)
+          await this.startSizeReportServer(JSON.stringify(reportData, null, 2))
           callback(err)
         })
       })
@@ -526,17 +568,17 @@ class SizeReportPlugin {
     }
   }
 
-  async startSizeReportServer(stats) {
-    this.server = viewer.startServer(stats, {
-      openBrowser: this.opts.openReport,
-      host: this.opts.reportHost,
-      port: this.opts.serverPort,
-      reportTitle: this.opts.reportTitle,
-      readFilePath: this.opts.readFilePath
+  async startSizeReportServer(reportData) {
+    this.server = viewer.startServer(reportData, {
+      openBrowser: this.options.openReport,
+      host: this.options.reportHost,
+      port: this.options.serverPort,
+      reportTitle: this.options.reportTitle,
+      readFilePath: this.options.readFilePath
       // bundleDir: this.getBundleDirFromCompiler(),
       // logger: this.logger,
-      // defaultSizes: this.opts.defaultSizes,
-      // excludeAssets: this.opts.excludeAssets
+      // defaultSizes: this.options.defaultSizes,
+      // excludeAssets: this.options.excludeAssets
     });
   }
 }

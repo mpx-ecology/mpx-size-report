@@ -9,7 +9,7 @@ const opener = require('opener')
 const projectRoot = path.resolve(__dirname, '..');
 const assetsRoot = path.join(projectRoot, 'public');
 
-async function startServer(bundleStats, opts) {
+async function startServer(reportData, opts) {
   const {
     port = 9999,
     host = '127.0.0.1',
@@ -27,12 +27,12 @@ async function startServer(bundleStats, opts) {
   app.set('view engine', 'ejs');
   app.use(express.static(`${projectRoot}/public`));
 
-  app.use('/sizeReport', (req, res) => {
+  app.use('/size', (req, res) => {
     console.log('req router trigger')
-    res.render('viewer.ejs', {
+    res.render('index.ejs', {
       mode: 'server',
       title: 'Mpx Size Report',
-      sizeReportInfo: {}
+      sizeReportInfo: reportData
     })
   })
 
@@ -103,7 +103,7 @@ async function startServer(bundleStats, opts) {
     server.listen(port, host, (err) => {
       if (!err) {
         resolve()
-        const url = `http://${host}:${server.address().port}`
+        const url = `http://${host}:${server.address().port}/size`
         if (openBrowser) {
           opener(url)
         }
@@ -115,7 +115,7 @@ async function startServer(bundleStats, opts) {
         server.close();
         server.listen(0, host, (err) => {
           resolve()
-          const url = `http://${host}:${server.address().port}`
+          const url = `http://${host}:${server.address().port}/size`
           if (openBrowser) {
             opener(url)
           }
