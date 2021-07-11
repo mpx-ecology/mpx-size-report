@@ -1,5 +1,7 @@
 # Mpx size reprot plugin
 
+Mpx 包体积分析插件
+
 ## Install
 
 ```js
@@ -12,8 +14,7 @@ npm i @didi/mpx-size-report --save-dev
 ```js
 plugins: [
     new MpxSizeReportPlugin({
-      // 读取的 sizeReport json 文件地址，第二版会去掉
-      readFilePath: path.resolve(__dirname, '../dist/wx-size-report.json')
+
     }),
 ]
 ```
