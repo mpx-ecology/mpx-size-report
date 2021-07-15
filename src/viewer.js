@@ -101,6 +101,9 @@ async function startServer(reportData, opts) {
     server.listen(port, host, (err) => {
       if (!err) {
         resolve()
+        setTimeout(()=>{
+          console.log('mpx size report 体积平台本地服务已开启:', `http://${host}:${server.address().port}/size`)
+        }, 0)
         const url = `http://${host}:${server.address().port}/size`
         if (autoOpenBrowser) {
           opener(url)

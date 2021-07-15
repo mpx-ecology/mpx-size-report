@@ -1,4 +1,4 @@
-# Mpx size reprot plugin
+# Mpx size report plugin
 
 Mpx 包体积分析插件
 
