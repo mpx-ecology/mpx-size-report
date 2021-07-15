@@ -10,17 +10,20 @@ const parseAsset = require('./utils/parse-asset')
 
 class SizeReportPlugin {
   constructor(opts = {}) {
-    this.options = {
-      reportMode: 'server',
-      reportHost: '127.0.0.1',
-      reportTitle: utils.defaultTitle,
-      readFilePath: opts.readFilePath || '',
-      openReport: true,
-      serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 9999,
-      reportSize: opts.reportSize || {
-        groups: []
-      }
-    }
+    this.options = Object.assign(
+      {
+        reportMode: 'server',
+        reportHost: '127.0.0.1',
+        startServer: true,
+        readFilePath: '',
+        autoOpenBrowser: true,
+        serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 9999,
+        reportSize: {
+          groups: []
+        }
+      },
+      opts
+    )
 
     this.server = null
 
@@ -540,25 +543,13 @@ class SizeReportPlugin {
         compiler.outputFileSystem.writeFile(reportFilePath, JSON.stringify(reportData, null, 2), async (err) => {
           const logger = compilation.getLogger('MpxWebpackPlugin')
           logger.info(`Size report is generated in ${reportFilePath}!`)
-          await this.startSizeReportServer(JSON.stringify(reportData, null, 2))
+          if (this.options.startServer) {
+            await this.startSizeReportServer(JSON.stringify(reportData, null, 2))
+          }
           callback(err)
         })
       })
 
-      // callback = callback || (() => {})
-      // await this.startSizeReportServer(stats)
-      // callback()
-      // setImmediate(async () => {
-      //   try{
-      //     await Promise.all([() => {
-      //       this.startSizeReportServer(stats)
-      //     }])
-      //     callback()
-      //   } catch (e) {
-      //     console.log('ERRRO')
-      //     callback(e)
-      //   }
-      // })
     }
 
     if (compiler.hooks) {
@@ -573,7 +564,8 @@ class SizeReportPlugin {
       openBrowser: this.options.openReport,
       host: this.options.reportHost,
       port: this.options.serverPort,
-      reportTitle: this.options.reportTitle,
+      autoOpenBrowser: this.options.autoOpenBrowser,
+      startServer: this.options.startServer,
       readFilePath: this.options.readFilePath
       // bundleDir: this.getBundleDirFromCompiler(),
       // logger: this.logger,

@@ -11,10 +11,9 @@ const assetsRoot = path.join(projectRoot, 'public');
 
 async function startServer(reportData, opts) {
   const {
-    port = 9999,
-    host = '127.0.0.1',
-    openBrowser = true,
-    reportTitle,
+    port = opts.port || 9999,
+    host = opts.host || '127.0.0.1',
+    autoOpenBrowser =  true,
     readFilePath
   } = opts || {};
 
@@ -28,7 +27,6 @@ async function startServer(reportData, opts) {
   app.use(express.static(`${projectRoot}/public`));
 
   app.use('/size', (req, res) => {
-    console.log('req router trigger')
     res.render('index.ejs', {
       mode: 'server',
       title: 'Mpx Size Report',
@@ -104,7 +102,7 @@ async function startServer(reportData, opts) {
       if (!err) {
         resolve()
         const url = `http://${host}:${server.address().port}/size`
-        if (openBrowser) {
+        if (autoOpenBrowser) {
           opener(url)
         }
       }
@@ -116,7 +114,7 @@ async function startServer(reportData, opts) {
         server.listen(0, host, (err) => {
           resolve()
           const url = `http://${host}:${server.address().port}/size`
-          if (openBrowser) {
+          if (autoOpenBrowser) {
             opener(url)
           }
         })
