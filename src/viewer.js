@@ -26,7 +26,7 @@ async function startServer(reportData, opts) {
   app.set('view engine', 'ejs');
   app.use(express.static(`${projectRoot}/public`));
 
-  app.use('/size', (req, res) => {
+  app.use('/', (req, res) => {
     res.render('index.ejs', {
       mode: 'server',
       title: 'Mpx Size Report',
@@ -102,9 +102,9 @@ async function startServer(reportData, opts) {
       if (!err) {
         resolve()
         setTimeout(()=>{
-          console.log('mpx size report 体积平台本地服务已开启:', `http://${host}:${server.address().port}/size`)
+          console.log('mpx size report 体积平台本地服务已开启:', `http://${host}:${server.address().port}/`)
         }, 0)
-        const url = `http://${host}:${server.address().port}/size`
+        const url = `http://${host}:${server.address().port}/`
         if (autoOpenBrowser) {
           opener(url)
         }
@@ -116,7 +116,7 @@ async function startServer(reportData, opts) {
         server.close();
         server.listen(0, host, (err) => {
           resolve()
-          const url = `http://${host}:${server.address().port}/size`
+          const url = `http://${host}:${server.address().port}/`
           if (autoOpenBrowser) {
             opener(url)
           }
