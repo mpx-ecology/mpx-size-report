@@ -536,7 +536,6 @@ class SizeReportPlugin {
       'sizeSummary|groupsSizeInfo|assetsSizeInfo'.split('|').forEach((key) => {
         if (fields.hasOwnProperty(key) && !fields[key]) delete reportData[key]
       })
-      console.log('in this ')
       const reportFilePath = path.resolve(compiler.outputPath, this.options.reportSize.filename || 'report.json')
       compiler.outputFileSystem.mkdirp(path.dirname(reportFilePath), (err) => {
         if (err) return callback(err)
@@ -561,7 +560,6 @@ class SizeReportPlugin {
 
   async startSizeReportServer(reportData) {
     this.server = viewer.startServer(reportData, {
-      openBrowser: this.options.openReport,
       host: this.options.reportHost,
       port: this.options.serverPort,
       autoOpenBrowser: this.options.autoOpenBrowser,

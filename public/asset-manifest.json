@@ -1,12 +1,6 @@
 {
-  "/umi.css": "/public/umi.f893e8a3.css",
-  "/umi.js": "/public/umi.ef6e4f00.js",
-  "/CNAME": "/public/CNAME",
-  "/favicon.ico": "/public/favicon.ico",
+  "/umi.css": "/public/umi.54dd2f23.css",
+  "/umi.js": "/public/umi.85fd16f4.js",
   "/home_bg.png": "/public/home_bg.png",
-  "/icons/icon-128x128.png": "/public/icons/icon-128x128.png",
-  "/icons/icon-192x192.png": "/public/icons/icon-192x192.png",
-  "/icons/icon-512x512.png": "/public/icons/icon-512x512.png",
-  "/index.html": "/public/index.html",
-  "/pro_icon.svg": "/public/pro_icon.svg"
+  "/index.html": "/public/index.html"
 }
