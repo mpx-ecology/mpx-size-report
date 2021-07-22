@@ -3,10 +3,10 @@
 目前业内主流小程序平台都对小程序的代码包设置了严格的体积限制，微信是单包 2MB，总包 16MB，支付宝是单包 2MB，总包 8MB；包体积作为有限的资源，在小程序业务开发中异常重要，特别对于像滴滴出行这样的大型复杂业务。
 
 Mpx 在包体积控制上做了很多工作，主要包括：
-* [完善的分包支持](./subpackage.md#分包)
-* [基于依赖声明的按需构建](./npm.md)
-* [图像资源处理](./image-process.md)
-* [公共样式复用](../basic/css.md#公共样式复用)
+* [完善的分包支持](https://mpxjs.cn/guide/advance/subpackage.html#%E5%88%86%E5%8C%85)
+* [基于依赖声明的按需构建](https://mpxjs.cn/guide/advance/npm.html)
+* [图像资源处理](https://mpxjs.cn/guide/advance/image-process.html)
+* [公共样式复用](https://mpxjs.cn/guide/basic/css.html#%E5%85%AC%E5%85%B1%E6%A0%B7%E5%BC%8F%E5%A4%8D%E7%94%A8)
 
 此外由于 Mpx 的编译构建完全基于 webpack，也能够直接复用webpack生态自带的代码压缩，模块复用，tree shaking，side effects 等能力对代码体积进行优化。
 
