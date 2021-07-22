@@ -1,14 +1,15 @@
 {
   "name": "@mpxjs/size-report",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "mpx size report plugin",
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "homepage": "https://github.com/mpx-ecology/mpx-size-report",
   "repository": {
     "type": "git",
-    "url": "git@git.xiaojukeji.com:fe-opensource/mpx-size-report.git"
+    "url": "git@github.com:mpx-ecology/mpx-size-report.git"
   },
   "keywords": [
     "mpx",
