@@ -1,11 +1,10 @@
-
 const utils = require('./utils')
 const viewer = require('./viewer')
 const path = require('path')
 const matchCondition = require('./utils/match-condition')
 const parseRequest = require('./utils/parse-request')
 const parseAsset = require('./utils/parse-asset')
-
+const toPosix = require('./utils/to-posix')
 
 
 class SizeReportPlugin {
@@ -28,24 +27,25 @@ class SizeReportPlugin {
     this.server = null
 
   }
+
   apply(compiler) {
     this.compiler = compiler
 
-    function every (set, fn) {
+    function every(set, fn) {
       for (const item of set) {
         if (!fn(item)) return false
       }
       return true
     }
 
-    function has (set, fn) {
+    function has(set, fn) {
       for (const item of set) {
         if (fn(item)) return true
       }
       return false
     }
 
-    function map (set, fn) {
+    function map(set, fn) {
       const result = new Set()
       set.forEach((item) => {
         result.add(fn(item))
@@ -53,7 +53,7 @@ class SizeReportPlugin {
       return result
     }
 
-    function filter (set, fn) {
+    function filter(set, fn) {
       const result = new Set()
       set.forEach((item) => {
         if (fn(item)) {
@@ -63,7 +63,7 @@ class SizeReportPlugin {
       return result
     }
 
-    function concat (setA, setB) {
+    function concat(setA, setB) {
       const result = new Set()
       setA.forEach((item) => {
         result.add(item)
@@ -74,7 +74,7 @@ class SizeReportPlugin {
       return result
     }
 
-    function mapToArr (set, fn) {
+    function mapToArr(set, fn) {
       const result = []
       set.forEach((item) => {
         result.push(fn(item))
@@ -82,10 +82,10 @@ class SizeReportPlugin {
       return result
     }
 
-    function walkEntry (entryModule, sideEffect) {
+    function walkEntry(entryModule, sideEffect) {
       const modulesSet = new Set()
 
-      function walkDependencies (dependencies = []) {
+      function walkDependencies(dependencies = []) {
         dependencies.forEach((dep) => {
           // // We skip Dependencies without Reference
           // const ref = compilation.getDependencyReference(module, dep)
@@ -106,7 +106,7 @@ class SizeReportPlugin {
         })
       }
 
-      function walk (module) {
+      function walk(module) {
         if (modulesSet.has(module)) return
         sideEffect && sideEffect(module, entryModule)
         modulesSet.add(module)
@@ -168,14 +168,15 @@ class SizeReportPlugin {
       const subpackages = Object.keys(mpx.componentsMap)
       delete subpackages.main
 
-      function getPackageName (fileName) {
-        for (let item of subpackages) {
-          if (fileName.startsWith(item)) return item
+      function getPackageName(fileName) {
+        fileName = toPosix(fileName)
+        for (let packageName of subpackages) {
+          if (fileName.startsWith(packageName + '/')) return packageName
         }
         return 'main'
       }
 
-      function getEntrySet (entryModules, ignoreSubEntry) {
+      function getEntrySet(entryModules, ignoreSubEntry) {
         const selfSet = new Set()
         const sharedSet = new Set()
         const otherSelfEntryModules = new Set()
@@ -238,17 +239,17 @@ class SizeReportPlugin {
         })
       })
 
-      function fillSizeInfo (sizeInfo, packageName, fillType, fillInfo) {
+      function fillSizeInfo(sizeInfo, packageName, fillType, fillInfo) {
         sizeInfo[packageName] = sizeInfo[packageName] || {
           assets: [],
           modules: [],
           size: 0
         }
-        sizeInfo[packageName][fillType].push({ ...fillInfo })
+        sizeInfo[packageName][fillType].push({...fillInfo})
         sizeInfo[packageName].size += fillInfo.size
       }
 
-      function fillSizeReportGroups (entryModules, noEntryModules, packageName, fillType, fillInfo) {
+      function fillSizeReportGroups(entryModules, noEntryModules, packageName, fillType, fillInfo) {
         reportGroups.forEach((reportGroup) => {
           if (reportGroup.noEntryModules && noEntryModules && noEntryModules.size) {
             if (has(noEntryModules, (noEntryModule) => {
@@ -297,7 +298,7 @@ class SizeReportPlugin {
         copySize: 0
       }
 
-      function fillPackagesSizeInfo (packageName, size) {
+      function fillPackagesSizeInfo(packageName, size) {
         packagesSizeInfo[packageName] = packagesSizeInfo[packageName] || 0
         packagesSizeInfo[packageName] += size
       }
@@ -410,7 +411,7 @@ class SizeReportPlugin {
       }
 
       // Check threshold
-      function normalizeThreshold (threshold) {
+      function normalizeThreshold(threshold) {
         if (typeof threshold === 'number') return threshold
         if (typeof threshold === 'string') {
           if (/ki?b$/i.test(threshold)) return parseFloat(threshold) * 1024
@@ -419,7 +420,7 @@ class SizeReportPlugin {
         return +threshold
       }
 
-      function checkThreshold (threshold, size, sizeInfo, reportGroupName) {
+      function checkThreshold(threshold, size, sizeInfo, reportGroupName) {
         const sizeThreshold = normalizeThreshold(threshold.size || threshold)
         const packagesThreshold = threshold.packages
         const prefix = reportGroupName ? `${reportGroupName}体积分组` : '总包'
@@ -451,11 +452,11 @@ class SizeReportPlugin {
       })
 
       // Format size info
-      function mapModulesReadable (modulesSet) {
+      function mapModulesReadable(modulesSet) {
         return mapToArr(modulesSet, (module) => module.readableIdentifier(compilation.requestShortener))
       }
 
-      function formatSizeInfo (sizeInfo) {
+      function formatSizeInfo(sizeInfo) {
         const result = {}
         for (const key in sizeInfo) {
           const item = sizeInfo[key]
@@ -468,12 +469,12 @@ class SizeReportPlugin {
         return result
       }
 
-      function formatSize (byteLength) {
+      function formatSize(byteLength) {
         if (typeof byteLength !== 'number') return byteLength
         return (byteLength / 1024).toFixed(2) + 'KiB'
       }
 
-      function sortAndFormat (sizeItems) {
+      function sortAndFormat(sizeItems) {
         sizeItems.sort((a, b) => {
           return b.size - a.size
         }).forEach((sizeItem) => {
