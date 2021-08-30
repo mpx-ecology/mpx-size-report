@@ -335,7 +335,7 @@ class SizeReportPlugin {
           modules: [],
           size: 0
         }
-        // sizeInfo[packageName][fillType].push({...fillInfo})
+        sizeInfo[packageName][fillType].push({...fillInfo})
         sizeInfo[packageName].size += fillInfo.size
       }
 
