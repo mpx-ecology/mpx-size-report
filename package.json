@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint --ext .js src/"
+    "lint": "eslint --ext .js src/",
+    "fix": "eslint --fix --ext .js src/"
   },
   "homepage": "https://github.com/mpx-ecology/mpx-size-report",
   "repository": {

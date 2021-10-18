@@ -4,20 +4,20 @@ const http = require('http')
 const express = require('express')
 const opener = require('opener')
 
-const projectRoot = path.resolve(__dirname, '..');
+const projectRoot = path.resolve(__dirname, '..')
 
-async function startServer(reportData, opts) {
+async function startServer (reportData, opts) {
   const {
     port = opts.port || 9999,
     host = opts.host || '127.0.0.1',
-    autoOpenBrowser =  true
-  } = opts || {};
+    autoOpenBrowser = true
+  } = opts || {}
 
   const app = express()
 
-  app.set('views', path.join(__dirname, '../views'));
-  app.set('view engine', 'ejs');
-  app.use(express.static(`${projectRoot}/public`));
+  app.set('views', path.join(__dirname, '../views'))
+  app.set('view engine', 'ejs')
+  app.use(express.static(`${projectRoot}/public`))
 
   app.use('/', (req, res) => {
     res.render('index.ejs', {
@@ -33,7 +33,7 @@ async function startServer(reportData, opts) {
     server.listen(port, host, (err) => {
       if (!err) {
         resolve()
-        setTimeout(()=>{
+        setTimeout(() => {
           console.log('mpx size report 体积平台本地服务已开启:', `http://${host}:${server.address().port}/`)
         }, 0)
         const url = `http://${host}:${server.address().port}/`
@@ -45,8 +45,8 @@ async function startServer(reportData, opts) {
     server.on('error', (e) => {
       console.log('listen error', e)
       setTimeout(() => {
-        server.close();
-        server.listen(0, host, (err) => {
+        server.close()
+        server.listen(0, host, () => {
           resolve()
           const url = `http://${host}:${server.address().port}/`
           if (autoOpenBrowser) {
@@ -61,4 +61,4 @@ async function startServer(reportData, opts) {
 module.exports = {
   startServer,
   start: startServer
-};
+}
