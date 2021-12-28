@@ -567,11 +567,11 @@ class SizeReportPlugin {
 
       await writeFilePromise(reportFilePath, JSON.stringify(reportData, null, 2))
 
-      const logger = compilation.getLogger('MpxWebpackPlugin')
+      const logger = compilation.getLogger('SizeReportPlugin')
       logger.info(`Size report is generated in ${reportFilePath}!`)
 
       if (this.options.server.enable) {
-        startServer(JSON.stringify(reportData), this.options.server)
+        startServer(JSON.stringify(reportData), Object.assign({ logger }, this.options.server))
       }
     })
   }

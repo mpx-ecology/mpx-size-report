@@ -9,7 +9,8 @@ const projectRoot = path.resolve(__dirname, '..')
 module.exports = function startServer (reportData, {
   host,
   port,
-  autoOpenBrowser = true
+  autoOpenBrowser = true,
+  logger
 } = {}) {
   const app = express()
 
@@ -31,13 +32,13 @@ module.exports = function startServer (reportData, {
     server.listen(port, host, (err) => {
       if (err) {
         if (port === 0) {
-          console.log(err)
+          logger && logger.error(err)
         } else {
           listen(0, host)
         }
       } else {
         port = server.address().port
-        console.log('Mpx size report 体积平台本地服务已开启:', `http://${host}:${port}/`)
+        logger && logger.info('Mpx size report 体积平台本地服务已开启:', `http://${host}:${port}/`)
         const url = `http://${host}:${port}/`
         if (autoOpenBrowser) {
           opener(url)
