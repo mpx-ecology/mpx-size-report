@@ -31,6 +31,9 @@
     "opener": "^1.5.2",
     "ws": "^7.4.3"
   },
+  "peerDependencies": {
+    "@mpxjs/webpack-plugin": "^2.7.1-beta.1"
+  },
   "devDependencies": {
     "babel-eslint": "^10.1.0",
     "eslint": "^5.10.0",

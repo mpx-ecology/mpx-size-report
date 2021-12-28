@@ -1,248 +1,124 @@
-const viewer = require('./viewer')
+const startServer = require('./server')
 const path = require('path')
-const matchCondition = require('./utils/match-condition')
-const parseRequest = require('./utils/parse-request')
+const matchCondition = require('@mpxjs/webpack-plugin/lib/utils/match-condition')
+const parseRequest = require('@mpxjs/webpack-plugin/lib/utils/parse-request')
+const toPosix = require('@mpxjs/webpack-plugin/lib/utils/to-posix')
+const { every, has, map, filter, concat, mapToArr } = require('@mpxjs/webpack-plugin/lib/utils/set')
 const parseAsset = require('./utils/parse-asset')
-const toPosix = require('./utils/to-posix')
-const getMainCompilation = require('./utils/get-main-compilation')
+const { mkdirp } = require('webpack/lib/util/fs')
 
 class SizeReportPlugin {
   constructor (opts = {}) {
-    this.options = Object.assign(
-      {
-        reportMode: 'server',
-        reportHost: '127.0.0.1',
-        startServer: true,
-        readFilePath: '',
-        autoOpenBrowser: true,
-        serverPort: 'serverPort' in opts ? (opts.serverPort === 'auto' ? 0 : opts.serverPort) : 9999,
-        reportSize: {
-          groups: []
-        }
-      },
-      opts
-    )
-
-    this.server = null
+    this.options = opts
+    this.options.server = Object.assign({
+      host: '127.0.0.1',
+      port: 0,
+      autoOpenBrowser: true,
+      enable: true
+    }, opts.server)
   }
 
   apply (compiler) {
-    function every (set, fn) {
-      for (const item of set) {
-        if (!fn(item)) return false
-      }
-      return true
-    }
-
-    function has (set, fn) {
-      for (const item of set) {
-        if (fn(item)) return true
-      }
-      return false
-    }
-
-    function map (set, fn) {
-      const result = new Set()
-      set.forEach((item) => {
-        result.add(fn(item))
+    const fs = compiler.outputFileSystem
+    const mkdirpPromise = (dir) => new Promise((resolve, reject) => {
+      mkdirp(fs, dir, (err) => {
+        if (err) return reject(err)
+        resolve()
       })
-      return result
-    }
+    })
 
-    function filter (set, fn) {
-      const result = new Set()
-      set.forEach((item) => {
-        if (fn(item)) {
-          result.add(item)
+    const writeFilePromise = (file, content) => new Promise((resolve, reject) => {
+      fs.writeFile(file, content, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+
+    compiler.hooks.emit.tapPromise({
+      name: 'SizeReportPlugin',
+      // 在最后assets稳定后执行
+      stage: 1000
+    }, async (compilation) => {
+      const { moduleGraph, chunkGraph, __mpx__: mpx } = compilation
+      if (!mpx) return
+
+      function walkEntry (entryModule, sideEffect) {
+        const modulesSet = new Set()
+
+        function walk (module) {
+          if (modulesSet.has(module)) return
+          sideEffect && sideEffect(module, entryModule)
+          modulesSet.add(module)
+          for (const connection of moduleGraph.getOutgoingConnections(module)) {
+            const d = connection.dependency
+            // We skip connections without dependency
+            if (!d) continue
+            const m = connection.module
+            // We skip connections without Module pointer
+            if (!m) continue
+            // We skip weak connections
+            if (connection.weak) continue
+            // Use undefined runtime
+            const state = connection.getActiveState(/* runtime */)
+            // We skip inactive connections
+            if (state === false) continue
+            walk(m)
+          }
         }
-      })
-      return result
-    }
 
-    function concat (setA, setB) {
-      const result = new Set()
-      setA.forEach((item) => {
-        result.add(item)
-      })
-      setB.forEach((item) => {
-        result.add(item)
-      })
-      return result
-    }
-
-    function mapToArr (set, fn) {
-      const result = []
-      set.forEach((item) => {
-        result.push(fn(item))
-      })
-      return result
-    }
-
-    function walkEntry (entryModule, sideEffect) {
-      const modulesSet = new Set()
-
-      function walkDependencies (dependencies = []) {
-        dependencies.forEach((dep) => {
-          // // We skip Dependencies without Reference
-          // const ref = compilation.getDependencyReference(module, dep)
-          // if (!ref) {
-          //   return
-          // }
-          // // We skip Dependencies without Module pointer
-          // const refModule = ref.module
-          // if (!refModule) {
-          //   return
-          // }
-          // // We skip weak Dependencies
-          // if (ref.weak) {
-          //   return
-          // }
-          const refModule = dep.module || dep.removedModule || dep.childCompileEntryModule
-          if (refModule) walk(refModule)
-        })
+        walk(entryModule)
       }
 
-      function walk (module) {
-        if (modulesSet.has(module)) return
-        sideEffect && sideEffect(module, entryModule)
-        modulesSet.add(module)
-        walkDependencies(module.dependencies)
-        module.blocks.forEach((block) => {
-          walkDependencies(block.dependencies)
-        })
-        module.variables.forEach((variable) => {
-          walkDependencies(variable.dependencies)
-        })
-      }
-
-      walk(entryModule)
-    }
-
-    function walkPageEntry (entryPageNode, sideEffect) {
-      // mpx.getEntryNode(entryModule.request, 'Page')
-      const modulesSet = new Set()
-
-      function walkDependencies (dependencies = []) {
-        dependencies.forEach((dep) => {
-          // // We skip Dependencies without Reference
-          // const ref = compilation.getDependencyReference(module, dep)
-          // if (!ref) {
-          //   return
-          // }
-          // // We skip Dependencies without Module pointer
-          // const refModule = ref.module
-          // if (!refModule) {
-          //   return
-          // }
-          // // We skip weak Dependencies
-          // if (ref.weak) {
-          //   return
-          // }
-          const refModule = dep.module || dep.removedModule || dep.childCompileEntryModule
-          if (refModule) walk(refModule)
-        })
-      }
-
-      function walkChildren (children) {
-        children.forEach((child) => {
-          walk(child)
-        })
-      }
-
-      function walk (module) {
-        if (modulesSet.has(module)) return
-        sideEffect && sideEffect(module, entryPageNode)
-        if (module.module) {
-          sideEffect && sideEffect(module.module, entryPageNode)
-        }
-        modulesSet.add(module)
-        const depModule = module.module || module
-        if (module.children && module.children.size) {
-          walkChildren(module.children)
-        }
-        walkDependencies(depModule.dependencies)
-        depModule.blocks.forEach((block) => {
-          walkDependencies(block.dependencies)
-        })
-        depModule.variables.forEach((variable) => {
-          walkDependencies(variable.dependencies)
-        })
-      }
-
-      walk(entryPageNode)
-    }
-
-    const done = async (stats, callback) => {
-      const compilation = stats.compilation
-      const mpx = compilation.__mpx__
-      const reportGroups = this.options.reportSize.groups || []
-      const mainCompilation = getMainCompilation(compilation)
-      const rootName = mainCompilation._preparedEntrypoints[0].name
-
-      const pagesSizeInfo = {
-        pages: []
-      }
+      const reportGroups = this.options.groups || []
 
       const reportGroupsWithNoEntryRules = reportGroups.filter((reportGroup) => {
         return reportGroup.hasOwnProperty('noEntryRules')
       })
 
+      const moduleEntriesMap = new Map()
+
+      function setModuleEntries (module, entryModule, noEntry) {
+        getModuleEntries(module, noEntry).add(entryModule)
+      }
+
+      function getModuleEntries (module, noEntry) {
+        const entries = moduleEntriesMap.get(module) || []
+        const index = noEntry ? 1 : 0
+        entries[index] = entries[index] || new Set()
+        moduleEntriesMap.set(module, entries)
+        return entries[index]
+      }
+
       // Walk and mark entryModules/noEntryModules
       compilation.chunks.forEach((chunk) => {
-        if (chunk.entryModule) {
-          walkEntry(chunk.entryModule, (module, entryModule) => {
-            module.entryModules = module.entryModules || new Set()
-            module.entryModules.add(entryModule)
-          })
-          // Walk and mark page entryModules/noEntryModules
-          if (Object.values(mpx.pagesMap).includes(chunk.name) || rootName === chunk.name) {
-            const type = rootName === chunk.name ? 'App' : 'Page'
-            const entryPageNode = mpx.getEntryNode(chunk.entryModule.rawRequest, type)
-            if (type === 'App') {
-              const copyChildren = new Set()
-              entryPageNode.children.forEach((child) => {
-                if (child.type !== 'Page') {
-                  copyChildren.add(child)
-                }
-              })
-              entryPageNode.children = copyChildren
-            }
-            pagesSizeInfo.pages.push({
-              name: chunk.name,
-              request: entryPageNode.request,
-              size: 0,
-              selfSize: 0,
-              sharedSize: 0,
-              selfModules: [],
-              sharedModules: []
+        const entryModules = chunkGraph.getChunkEntryModulesIterable(chunk)
+        if (entryModules.length) {
+          entryModules.forEach((entryModule) => {
+            walkEntry(entryModule, (module, entryModule) => {
+              setModuleEntries(module, entryModule)
             })
-            walkPageEntry(entryPageNode, (module, entryPageNode) => {
-              module.entryPageNodes = module.entryPageNodes || new Set()
-              module.entryPageNodes.add(entryPageNode)
+            reportGroups.forEach((reportGroup) => {
+              reportGroup.entryModules = reportGroup.entryModules || new Set()
+              if (reportGroup.entryRules && matchCondition(parseRequest(entryModule.resource).resourcePath, reportGroup.entryRules)) {
+                reportGroup.entryModules.add(entryModule)
+              }
             })
-          }
-
-          reportGroups.forEach((reportGroup) => {
-            reportGroup.entryModules = reportGroup.entryModules || new Set()
-            if (reportGroup.entryRules && matchCondition(parseRequest(chunk.entryModule.resource).resourcePath, reportGroup.entryRules)) {
-              reportGroup.entryModules.add(chunk.entryModule)
-            }
           })
         }
       })
 
-      // TODO
       if (reportGroupsWithNoEntryRules.length) {
         compilation.modules.forEach((module) => {
           reportGroupsWithNoEntryRules.forEach((reportGroup) => {
-            if ((module.resource && matchCondition(parseRequest(module.resource).resourcePath, reportGroup.noEntryRules)) || (module.modules && has(module.modules, (module) => {
-              return module.resource && matchCondition(parseRequest(module.resource).resourcePath, reportGroup.noEntryRules)
-            }))) {
+            if ((module.resource && matchCondition(parseRequest(module.resource).resourcePath, reportGroup.noEntryRules)) ||
+              // 处理ConcatenatedModule
+              (module.modules && has(module.modules, (module) => {
+                return module.resource && matchCondition(parseRequest(module.resource).resourcePath, reportGroup.noEntryRules)
+              }))) {
               reportGroup.noEntryModules = reportGroup.noEntryModules || new Set()
               reportGroup.noEntryModules.add(module)
               walkEntry(module, (module, noEntryModule) => {
-                module.noEntryModules = module.noEntryModules || new Set()
-                module.noEntryModules.add(noEntryModule)
+                setModuleEntries(module, noEntryModule, true)
               })
             }
           })
@@ -265,11 +141,11 @@ class SizeReportPlugin {
         const sharedSet = new Set()
         const otherSelfEntryModules = new Set()
         entryModules.forEach((entryModule) => {
-          const entryNode = mpx.entryModulesMap.get(entryModule)
+          const entryNode = mpx.getEntryNode(entryModule)
           if (entryNode) {
             selfSet.add(entryNode)
           } else {
-            // 没有在entryModulesMap记录的entryModule默认为selfEntryModule
+            // 没有在entryNode中记录的entryModule默认为selfEntryModule
             otherSelfEntryModules.add(entryModule)
           }
         })
@@ -337,8 +213,9 @@ class SizeReportPlugin {
         reportGroups.forEach((reportGroup) => {
           if (reportGroup.noEntryModules && noEntryModules && noEntryModules.size) {
             if (has(noEntryModules, (noEntryModule) => {
+              const _entryModules = getModuleEntries(noEntryModule)
               return reportGroup.noEntryModules.has(noEntryModule) && every(entryModules, (entryModule) => {
-                return noEntryModule.entryModules.has(entryModule)
+                return _entryModules.has(entryModule)
               })
             })) {
               reportGroup.selfSize += fillInfo.size
@@ -365,27 +242,28 @@ class SizeReportPlugin {
           }
         })
       }
-      function fillSizeReportPages (entryPageNodes, fillInfo) {
-        pagesSizeInfo.pages.forEach((page) => {
-          if (entryPageNodes && entryPageNodes.size) {
-            const nodesLen = entryPageNodes.size
-            // currentModule is some Page Module
-            if (has(entryPageNodes, (entryPageNode) => {
-              return entryPageNode.request === page.request
-            })) {
-              const size = fillInfo.size / nodesLen
-              page.size += size
-              if (nodesLen > 1) {
-                page.sharedSize += size
-                // page.sharedModules.push({...fillInfo})
-              } else {
-                page.selfSize += size
-                // page.selfModules.push({...fillInfo})
-              }
-            }
-          }
-        })
-      }
+
+      // function fillSizeReportPages (entryPageNodes, fillInfo) {
+      //   pagesSizeInfo.pages.forEach((page) => {
+      //     if (entryPageNodes && entryPageNodes.size) {
+      //       const nodesLen = entryPageNodes.size
+      //       // currentModule is some Page Module
+      //       if (has(entryPageNodes, (entryPageNode) => {
+      //         return entryPageNode.request === page.request
+      //       })) {
+      //         const size = fillInfo.size / nodesLen
+      //         page.size += size
+      //         if (nodesLen > 1) {
+      //           page.sharedSize += size
+      //           // page.sharedModules.push({...fillInfo})
+      //         } else {
+      //           page.selfSize += size
+      //           // page.selfModules.push({...fillInfo})
+      //         }
+      //       }
+      //     }
+      //   })
+      // }
 
       const assetsSizeInfo = {
         assets: []
@@ -408,40 +286,43 @@ class SizeReportPlugin {
       }
 
       const modulesMapById = compilation.modules.reduce((map, module) => {
-        map[module.id] = module
+        const id = chunkGraph.getModuleId(module)
+        map[id] = module
         return map
       }, {})
 
       // Generate original size info
       for (let name in compilation.assets) {
         const packageName = getPackageName(name)
-        const assetInfo = compilation.assetsInfo.get(name)
-        if (assetInfo && assetInfo.modules) {
+        const assetModules = mpx.assetModulesMap.get(name)
+        if (assetModules) {
           const entryModules = new Set()
-          const entryPageNodes = new Set()
           const noEntryModules = new Set()
+          // const entryPageNodes = new Set()
           // 循环 modules，存储到 entryModules 和 noEntryModules 中
-          assetInfo.modules.forEach((module) => {
-            if (module.entryModules) {
-              module.entryModules.forEach((entryModule) => {
+          assetModules.forEach((module) => {
+            const _entryModules = getModuleEntries(module)
+            const _noEntryModules = getModuleEntries(module, true)
+            if (_entryModules) {
+              _entryModules.forEach((entryModule) => {
                 entryModules.add(entryModule)
               })
             }
-            if (module.entryPageNodes) {
-              module.entryPageNodes.forEach((entryPageNode) => {
-                entryPageNodes.add(entryPageNode)
-              })
-            }
-            if (module.noEntryModules) {
-              module.noEntryModules.forEach((noEntryModule) => {
+            if (_noEntryModules) {
+              _noEntryModules.forEach((noEntryModule) => {
                 noEntryModules.add(noEntryModule)
               })
             }
+            // if (module.entryPageNodes) {
+            //   module.entryPageNodes.forEach((entryPageNode) => {
+            //     entryPageNodes.add(entryPageNode)
+            //   })
+            // }
           })
           const size = compilation.assets[name].size()
           const identifierSet = new Set()
           let identifier = ''
-          assetInfo.modules.forEach((module) => {
+          assetModules.forEach((module) => {
             const moduleIdentifier = module.readableIdentifier(compilation.requestShortener)
             identifierSet.add(moduleIdentifier)
             if (!identifier) identifier = moduleIdentifier
@@ -453,11 +334,11 @@ class SizeReportPlugin {
             identifier,
             size
           })
-          fillSizeReportPages(entryPageNodes, {
-            name,
-            identifier,
-            size
-          })
+          // fillSizeReportPages(entryPageNodes, {
+          //   name,
+          //   identifier,
+          //   size
+          // })
           assetsSizeInfo.assets.push({
             type: 'static',
             name,
@@ -498,16 +379,18 @@ class SizeReportPlugin {
             const module = modulesMapById[id]
             const moduleSize = Buffer.byteLength(parsedModules[id])
             const identifier = module.readableIdentifier(compilation.requestShortener)
-            fillSizeReportGroups(module.entryModules, module.noEntryModules, packageName, 'modules', {
+            const entryModules = getModuleEntries(module)
+            const noEntryModules = getModuleEntries(module, true)
+            fillSizeReportGroups(entryModules, noEntryModules, packageName, 'modules', {
               name,
               identifier,
               size: moduleSize
             })
-            fillSizeReportPages(module.entryPageNodes, {
-              name,
-              identifier,
-              size: moduleSize
-            })
+            // fillSizeReportPages(module.entryPageNodes, {
+            //   name,
+            //   identifier,
+            //   size: moduleSize
+            // })
             chunkAssetInfo.modules.push({
               identifier,
               size: moduleSize
@@ -562,8 +445,8 @@ class SizeReportPlugin {
         }
       }
 
-      if (this.options.reportSize.threshold) {
-        checkThreshold(this.options.reportSize.threshold, sizeSummary.totalSize, packagesSizeInfo)
+      if (this.options.threshold) {
+        checkThreshold(this.options.threshold, sizeSummary.totalSize, packagesSizeInfo)
       }
 
       reportGroups.forEach((reportGroup) => {
@@ -617,24 +500,24 @@ class SizeReportPlugin {
         return readableInfo
       })
 
-      const realPagesSizeInfo = {
-        pages: [],
-        totalSize: 0
-      }
-      realPagesSizeInfo.pages = pagesSizeInfo.pages.map((pageSizeInfo) => {
-        const readableInfo = {}
-        readableInfo.name = pageSizeInfo.name
-        readableInfo.request = pageSizeInfo.request
-        readableInfo.size = formatSize(pageSizeInfo.size)
-        readableInfo.selfSize = formatSize(pageSizeInfo.selfSize)
-        readableInfo.sharedSize = formatSize(pageSizeInfo.sharedSize)
-        readableInfo.selfModules = pageSizeInfo.selfModules
-        readableInfo.sharedModules = pageSizeInfo.sharedModules
-        realPagesSizeInfo.totalSize += pageSizeInfo.size
-        return readableInfo
-      })
-      realPagesSizeInfo.totalSize = formatSize(realPagesSizeInfo.totalSize)
-
+      // const realPagesSizeInfo = {
+      //   pages: [],
+      //   totalSize: 0
+      // }
+      // realPagesSizeInfo.pages = pagesSizeInfo.pages.map((pageSizeInfo) => {
+      //   const readableInfo = {}
+      //   readableInfo.name = pageSizeInfo.name
+      //   readableInfo.request = pageSizeInfo.request
+      //   readableInfo.size = formatSize(pageSizeInfo.size)
+      //   readableInfo.selfSize = formatSize(pageSizeInfo.selfSize)
+      //   readableInfo.sharedSize = formatSize(pageSizeInfo.sharedSize)
+      //   readableInfo.selfModules = pageSizeInfo.selfModules
+      //   readableInfo.sharedModules = pageSizeInfo.sharedModules
+      //   realPagesSizeInfo.totalSize += pageSizeInfo.size
+      //   return readableInfo
+      // })
+      // realPagesSizeInfo.totalSize = formatSize(realPagesSizeInfo.totalSize)
+      //
       sortAndFormat(assetsSizeInfo.assets)
       assetsSizeInfo.assets.forEach((asset) => {
         if (asset.modules) sortAndFormat(asset.modules)
@@ -669,47 +552,27 @@ class SizeReportPlugin {
       const reportData = {
         sizeSummary,
         groupsSizeInfo,
-        assetsSizeInfo,
-        pagesSizeInfo: realPagesSizeInfo
+        assetsSizeInfo
+        // pagesSizeInfo: realPagesSizeInfo
       }
 
-      const fields = this.options.reportSize.fields || {}
+      const fields = this.options.fields || {}
 
       'sizeSummary|groupsSizeInfo|assetsSizeInfo'.split('|').forEach((key) => {
         if (fields.hasOwnProperty(key) && !fields[key]) delete reportData[key]
       })
-      const reportFilePath = path.resolve(compiler.outputPath, this.options.reportSize.filename || 'report.json')
-      compiler.outputFileSystem.mkdirp(path.dirname(reportFilePath), (err) => {
-        if (err) return callback(err)
-        compiler.outputFileSystem.writeFile(reportFilePath, JSON.stringify(reportData, null, 2), async (err) => {
-          const logger = compilation.getLogger('MpxWebpackPlugin')
-          logger.info(`Size report is generated in ${reportFilePath}!`)
-          if (this.options.startServer) {
-            await this.startSizeReportServer(JSON.stringify(reportData, null, 2))
-          }
-          callback(err)
-        })
-      })
-    }
+      const reportFilePath = path.resolve(compiler.outputPath, this.options.filename || 'report.json')
 
-    if (compiler.hooks) {
-      compiler.hooks.done.tapAsync('mpx-size-report', done)
-    } else {
-      compiler.plugin('done', done)
-    }
-  }
+      await mkdirpPromise(path.dirname(reportFilePath))
 
-  async startSizeReportServer (reportData) {
-    this.server = viewer.startServer(reportData, {
-      host: this.options.reportHost,
-      port: this.options.serverPort,
-      autoOpenBrowser: this.options.autoOpenBrowser,
-      startServer: this.options.startServer,
-      readFilePath: this.options.readFilePath
-      // bundleDir: this.getBundleDirFromCompiler(),
-      // logger: this.logger,
-      // defaultSizes: this.options.defaultSizes,
-      // excludeAssets: this.options.excludeAssets
+      await writeFilePromise(reportFilePath, JSON.stringify(reportData, null, 2))
+
+      const logger = compilation.getLogger('MpxWebpackPlugin')
+      logger.info(`Size report is generated in ${reportFilePath}!`)
+
+      if (this.options.server.enable) {
+        startServer(JSON.stringify(reportData), this.options.server)
+      }
     })
   }
 }
