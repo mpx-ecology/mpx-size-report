@@ -24,8 +24,8 @@ function parseAsset (content) {
       state.expressionStatementDepth++
 
       if ( // Webpack 5 stores modules in the the top-level IIFE
-        state.expressionStatementDepth === 1 && ast.body.includes(node) && isIIFE(node)) {
-        const fn = getIIFECallExpression(node)
+        state.expressionStatementDepth === 1 && ast.body.includes(node) && isIIFE(node.expression)) {
+        const fn = getIIFECallExpression(node.expression)
 
         if ( // It should not contain neither arguments
           fn.arguments.length === 0 && // ...nor parameters
@@ -117,15 +117,23 @@ function parseAsset (content) {
 }
 
 function isIIFE (node) {
+  // mpx fix
+  if (node.type === 'SequenceExpression') {
+    return isIIFE(node.expressions[0])
+  }
   /* eslint-disable no-mixed-operators */
-  return node.type === 'ExpressionStatement' && (node.expression.type === 'CallExpression' || node.expression.type === 'UnaryExpression' && node.expression.argument.type === 'CallExpression')
+  return node.type === 'CallExpression' || node.type === 'UnaryExpression' && node.argument.type === 'CallExpression'
 }
 
 function getIIFECallExpression (node) {
-  if (node.expression.type === 'UnaryExpression') {
-    return node.expression.argument
+  // mpx fix
+  if (node.type === 'SequenceExpression') {
+    return getIIFECallExpression(node.expressions[0])
+  }
+  if (node.type === 'UnaryExpression') {
+    return node.argument
   } else {
-    return node.expression
+    return node
   }
 }
 

@@ -71,6 +71,21 @@ class SizeReportPlugin {
 
       const reportGroups = this.options.groups || []
 
+      const reportPages = this.options.reportPages
+
+      if (reportPages) {
+        Object.entries(mpx.pagesMap).forEach(([resourcePath, name]) => {
+          reportGroups.push({
+            name,
+            resourcePath,
+            isPage: true,
+            entryRules: {
+              include: resourcePath
+            }
+          })
+        })
+      }
+
       const reportGroupsWithNoEntryRules = reportGroups.filter((reportGroup) => {
         return reportGroup.hasOwnProperty('noEntryRules')
       })
@@ -90,22 +105,22 @@ class SizeReportPlugin {
       }
 
       // Walk and mark entryModules/noEntryModules
+      let entryModules = mpx.removedEntryModules
       compilation.chunks.forEach((chunk) => {
-        const entryModules = chunkGraph.getChunkEntryModulesIterable(chunk)
-        if (entryModules.length) {
-          entryModules.forEach((entryModule) => {
-            walkEntry(entryModule, (module, entryModule) => {
-              setModuleEntries(module, entryModule)
-            })
-            reportGroups.forEach((reportGroup) => {
-              reportGroup.entryModules = reportGroup.entryModules || new Set()
-              if (reportGroup.entryRules && matchCondition(parseRequest(entryModule.resource).resourcePath, reportGroup.entryRules)) {
-                reportGroup.entryModules.add(entryModule)
-              }
-            })
-          })
-        }
+        entryModules = concat(entryModules, new Set(chunkGraph.getChunkEntryModulesIterable(chunk)))
       })
+
+      for (const entryModule of entryModules) {
+        walkEntry(entryModule, (module, entryModule) => {
+          setModuleEntries(module, entryModule)
+        })
+        reportGroups.forEach((reportGroup) => {
+          reportGroup.entryModules = reportGroup.entryModules || new Set()
+          if (reportGroup.entryRules && matchCondition(parseRequest(entryModule.resource).resourcePath, reportGroup.entryRules)) {
+            reportGroup.entryModules.add(entryModule)
+          }
+        })
+      }
 
       if (reportGroupsWithNoEntryRules.length) {
         compilation.modules.forEach((module) => {
@@ -243,28 +258,6 @@ class SizeReportPlugin {
         })
       }
 
-      // function fillSizeReportPages (entryPageNodes, fillInfo) {
-      //   pagesSizeInfo.pages.forEach((page) => {
-      //     if (entryPageNodes && entryPageNodes.size) {
-      //       const nodesLen = entryPageNodes.size
-      //       // currentModule is some Page Module
-      //       if (has(entryPageNodes, (entryPageNode) => {
-      //         return entryPageNode.request === page.request
-      //       })) {
-      //         const size = fillInfo.size / nodesLen
-      //         page.size += size
-      //         if (nodesLen > 1) {
-      //           page.sharedSize += size
-      //           // page.sharedModules.push({...fillInfo})
-      //         } else {
-      //           page.selfSize += size
-      //           // page.selfModules.push({...fillInfo})
-      //         }
-      //       }
-      //     }
-      //   })
-      // }
-
       const assetsSizeInfo = {
         assets: []
       }
@@ -272,7 +265,6 @@ class SizeReportPlugin {
       const packagesSizeInfo = {}
 
       const sizeSummary = {
-        groups: [],
         sizeInfo: packagesSizeInfo,
         totalSize: 0,
         staticSize: 0,
@@ -285,11 +277,12 @@ class SizeReportPlugin {
         packagesSizeInfo[packageName] += size
       }
 
-      const modulesMapById = compilation.modules.reduce((map, module) => {
+      const modulesMapById = {}
+
+      compilation.modules.forEach(module => {
         const id = chunkGraph.getModuleId(module)
-        map[id] = module
-        return map
-      }, {})
+        modulesMapById[id] = module
+      })
 
       // Generate original size info
       for (let name in compilation.assets) {
@@ -298,7 +291,6 @@ class SizeReportPlugin {
         if (assetModules) {
           const entryModules = new Set()
           const noEntryModules = new Set()
-          // const entryPageNodes = new Set()
           // 循环 modules，存储到 entryModules 和 noEntryModules 中
           assetModules.forEach((module) => {
             const _entryModules = getModuleEntries(module)
@@ -313,11 +305,6 @@ class SizeReportPlugin {
                 noEntryModules.add(noEntryModule)
               })
             }
-            // if (module.entryPageNodes) {
-            //   module.entryPageNodes.forEach((entryPageNode) => {
-            //     entryPageNodes.add(entryPageNode)
-            //   })
-            // }
           })
           const size = compilation.assets[name].size()
           const identifierSet = new Set()
@@ -334,11 +321,6 @@ class SizeReportPlugin {
             identifier,
             size
           })
-          // fillSizeReportPages(entryPageNodes, {
-          //   name,
-          //   identifier,
-          //   size
-          // })
           assetsSizeInfo.assets.push({
             type: 'static',
             name,
@@ -386,11 +368,6 @@ class SizeReportPlugin {
               identifier,
               size: moduleSize
             })
-            // fillSizeReportPages(module.entryPageNodes, {
-            //   name,
-            //   identifier,
-            //   size: moduleSize
-            // })
             chunkAssetInfo.modules.push({
               identifier,
               size: moduleSize
@@ -456,9 +433,9 @@ class SizeReportPlugin {
       })
 
       // Format size info
-      function mapModulesReadable (modulesSet) {
-        return mapToArr(modulesSet, (module) => module.readableIdentifier(compilation.requestShortener))
-      }
+      // function mapModulesReadable (modulesSet) {
+      //   return mapToArr(modulesSet, (module) => module.readableIdentifier(compilation.requestShortener))
+      // }
 
       function formatSizeInfo (sizeInfo) {
         const result = {}
@@ -487,12 +464,12 @@ class SizeReportPlugin {
         return sizeItems
       }
 
-      const groupsSizeInfo = reportGroups.map((reportGroup) => {
+      const groupsSizeInfo = reportGroups.filter(item => !item.isPage).map((reportGroup) => {
         const readableInfo = {}
         readableInfo.name = reportGroup.name || 'anonymous group'
-        readableInfo.selfEntryModules = mapModulesReadable(reportGroup.selfEntryModules)
-        readableInfo.sharedEntryModules = mapModulesReadable(reportGroup.sharedEntryModules)
-        if (reportGroup.noEntryModules) readableInfo.noEntryModules = mapModulesReadable(reportGroup.noEntryModules)
+        // readableInfo.selfEntryModules = mapModulesReadable(reportGroup.selfEntryModules)
+        // readableInfo.sharedEntryModules = mapModulesReadable(reportGroup.sharedEntryModules)
+        // if (reportGroup.noEntryModules) readableInfo.noEntryModules = mapModulesReadable(reportGroup.noEntryModules)
         readableInfo.selfSize = formatSize(reportGroup.selfSize)
         readableInfo.selfSizeInfo = formatSizeInfo(reportGroup.selfSizeInfo)
         readableInfo.sharedSize = formatSize(reportGroup.sharedSize)
@@ -500,49 +477,25 @@ class SizeReportPlugin {
         return readableInfo
       })
 
-      // const realPagesSizeInfo = {
-      //   pages: [],
-      //   totalSize: 0
-      // }
-      // realPagesSizeInfo.pages = pagesSizeInfo.pages.map((pageSizeInfo) => {
-      //   const readableInfo = {}
-      //   readableInfo.name = pageSizeInfo.name
-      //   readableInfo.request = pageSizeInfo.request
-      //   readableInfo.size = formatSize(pageSizeInfo.size)
-      //   readableInfo.selfSize = formatSize(pageSizeInfo.selfSize)
-      //   readableInfo.sharedSize = formatSize(pageSizeInfo.sharedSize)
-      //   readableInfo.selfModules = pageSizeInfo.selfModules
-      //   readableInfo.sharedModules = pageSizeInfo.sharedModules
-      //   realPagesSizeInfo.totalSize += pageSizeInfo.size
-      //   return readableInfo
-      // })
-      // realPagesSizeInfo.totalSize = formatSize(realPagesSizeInfo.totalSize)
-      //
+      const pagesSizeInfo = reportGroups.filter(item => item.isPage).map((reportGroup) => {
+        const readableInfo = {}
+        readableInfo.name = reportGroup.name || 'anonymous page'
+        readableInfo.resourcePath = reportGroup.resourcePath
+        // readableInfo.selfEntryModules = mapModulesReadable(reportGroup.selfEntryModules)
+        // readableInfo.sharedEntryModules = mapModulesReadable(reportGroup.sharedEntryModules)
+        readableInfo.selfSize = formatSize(reportGroup.selfSize)
+        readableInfo.selfSizeInfo = formatSizeInfo(reportGroup.selfSizeInfo)
+        readableInfo.sharedSize = formatSize(reportGroup.sharedSize)
+        readableInfo.sharedSizeInfo = formatSizeInfo(reportGroup.sharedSizeInfo)
+        return readableInfo
+      })
+
       sortAndFormat(assetsSizeInfo.assets)
       assetsSizeInfo.assets.forEach((asset) => {
         if (asset.modules) sortAndFormat(asset.modules)
       })
-      // TODO 添加PageSize
       'totalSize|staticSize|chunkSize|copySize'.split('|').forEach((key) => {
         sizeSummary[key] = formatSize(sizeSummary[key])
-      })
-      groupsSizeInfo.forEach((groupSizeInfo) => {
-        const groupSummary = {
-          name: groupSizeInfo.name,
-          selfSize: 0,
-          selfSizeInfo: {},
-          sharedSize: 0,
-          sharedSizeInfo: {}
-        }
-        groupSummary.selfSize = groupSizeInfo.selfSize
-        for (const key in groupSizeInfo.selfSizeInfo) {
-          groupSummary.selfSizeInfo[key] = groupSizeInfo.selfSizeInfo[key].size
-        }
-        groupSummary.sharedSize = groupSizeInfo.sharedSize
-        for (const key in groupSizeInfo.sharedSizeInfo) {
-          groupSummary.sharedSizeInfo[key] = groupSizeInfo.sharedSizeInfo[key].size
-        }
-        sizeSummary.groups.push(groupSummary)
       })
 
       for (const packageName in packagesSizeInfo) {
@@ -550,17 +503,13 @@ class SizeReportPlugin {
       }
 
       const reportData = {
-        sizeSummary,
-        groupsSizeInfo,
-        assetsSizeInfo
-        // pagesSizeInfo: realPagesSizeInfo
+        sizeSummary
       }
 
-      const fields = this.options.fields || {}
+      if (groupsSizeInfo.length) reportData.groupsSizeInfo = groupsSizeInfo
+      if (pagesSizeInfo.length) reportData.pagesSizeInfo = pagesSizeInfo
+      if (this.options.reportAssets) reportData.assetsSizeInfo = assetsSizeInfo
 
-      'sizeSummary|groupsSizeInfo|assetsSizeInfo'.split('|').forEach((key) => {
-        if (fields.hasOwnProperty(key) && !fields[key]) delete reportData[key]
-      })
       const reportFilePath = path.resolve(compiler.outputPath, this.options.filename || 'report.json')
 
       await mkdirpPromise(path.dirname(reportFilePath))
