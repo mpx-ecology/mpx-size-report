@@ -105,7 +105,7 @@ class SizeReportPlugin {
       }
 
       // Walk and mark entryModules/noEntryModules
-      let entryModules = mpx.removedEntryModules
+      let entryModules = mpx.removedEntryModules || []
       compilation.chunks.forEach((chunk) => {
         entryModules = concat(entryModules, new Set(chunkGraph.getChunkEntryModulesIterable(chunk)))
       })
