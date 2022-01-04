@@ -36,49 +36,53 @@ const MpxSizeReportPlugin = require('@mpxjs/size-report')
 {
   plugins: [
     new MpxSizeReportPlugin({
-      // ...
-      // 是否打开本地 size report 平台服务，默认 true
-      startServer: true,
-      // 是否自动打开可视化平台页面，startServer为true时起作用，默认true
-      autoOpenBrowser: true,
-      reportSize: {
-        // 体积报告生成后输出的文件地址名，路径相对为 dist/wx 或者 dist/ali
-        filename: '../report.json',
-        // 配置阈值，此处代表总包体积阈值为 16MB，分包体积阈值为 2MB，超出将会触发编译报错提醒，该报错不阻断构建
-        threshold: {
-          size: '16MB',
-          packages: '2MB'
-        },
-        // 配置体积计算分组，以输入分组为维度对体积进行分析，当没有该配置时结果中将不会包含分组体积信息
-        groups: [
-          {
-            // 分组名称
-            name: 'vant',
-            // 配置分组 entry 匹配规则，小程序中所有的页面和组件都可被视为 entry，如下所示的分组配置将计算项目中引入的 vant 组件带来的体积占用
-            entryRules: {
-              include: '@vant/weapp'
-            }
-          },
-          {
-            name: 'pageGroup',
-            // 每个分组中可分别配置阈值，如果不配置则表示
-            threshold: '500KB',
-            entryRules: {
-              include: ['src/pages/index', 'src/pages/user']
-            }
-          },
-          {
-            name: 'someSdk',
-            entryRules: {
-              include: ['@somegroup/someSdk/index', '@somegroup/someSdk2/index']
-            },
-            // 有的时候你可能希望计算纯 js 入口引入的体积（不包含组件和页面），这种情况下需要使用 noEntryModules
-            noEntryModules: {
-              include: 'src/lib/sdk.js'
-            }
+      // 本地可视化服务相关配置
+      server: {
+        enable: true, // 是否启动本地服务，非必填，默认 true
+        autoOpenBrowser: true, // 是否自动打开可视化平台页面，非必填，默认 true
+        port: 0, // 本地服务端口，非必填，默认 0(随机端口)
+        host: '127.0.0.1', // 本地服务host，非必填
+      },
+      // 体积报告生成后输出的文件地址名，路径相对为 dist/wx 或者 dist/ali
+      filename: '../report.json',
+      // 配置阈值，此处代表总包体积阈值为 16MB，分包体积阈值为 2MB，超出将会触发编译报错提醒，该报错不阻断构建
+      threshold: {
+        size: '16MB',
+        packages: '2MB'
+      },
+      // 配置体积计算分组，以输入分组为维度对体积进行分析，当没有该配置时结果中将不会包含分组体积信息
+      groups: [
+        {
+          // 分组名称
+          name: 'vant',
+          // 配置分组 entry 匹配规则，小程序中所有的页面和组件都可被视为 entry，如下所示的分组配置将计算项目中引入的 vant 组件带来的体积占用
+          entryRules: {
+            include: '@vant/weapp'
           }
-        ]
-      }
+        },
+        {
+          name: 'pageGroup',
+          // 每个分组中可分别配置阈值，如果不配置则表示
+          threshold: '500KB',
+          entryRules: {
+            include: ['src/pages/index', 'src/pages/user']
+          }
+        },
+        {
+          name: 'someSdk',
+          entryRules: {
+            include: ['@somegroup/someSdk/index', '@somegroup/someSdk2/index']
+          },
+          // 有的时候你可能希望计算纯 js 入口引入的体积（不包含组件和页面），这种情况下需要使用 noEntryModules
+          noEntryModules: {
+            include: 'src/lib/sdk.js'
+          }
+        }
+      ],
+      // 是否收集页面维度体积详情，默认 false
+      reportPages: true,
+      // 是否收集资源维度体积详情，默认 false
+      reportAssets: true
     })
 
   ]
@@ -91,22 +95,6 @@ const MpxSizeReportPlugin = require('@mpxjs/size-report')
 {
     // 项目体积概要，大部分情况下，我们只需要看这部分就足够了
     "sizeSummary": {
-        // 分组体积概要，与上述配置文件中的 groups 对应
-        "groups": [
-            {
-                "name": "vant",
-                // 只有该分组包含的模块体积
-                "selfSize": "164.75KiB",
-                "selfSizeInfo": {
-                  // 该分组所占 shansong
-                  "shansong": "164.75KiB"
-                },
-                "sharedSize": "885.68KiB",
-                "sharedSizeInfo": {
-                  "main": "885.68KiB"
-                }
-            },
-        ],
         // 项目各个分包以及主包体积概要
         "sizeInfo": {
             "main": "1000KiB",
@@ -144,6 +132,17 @@ const MpxSizeReportPlugin = require('@mpxjs/size-report')
                 "homepage": {}
             },
 
+        }
+    ],
+    // 页面维度的体积详情
+    "pagesSizeInfo": [
+        {
+            "name": "pages/index",
+            "resourcePath": "/mpx-webpack5-beta-test/src/pages/index.mpx",
+            "selfSize": "0.43KiB",
+            "selfSizeInfo": {},
+            "sharedSize": "75.44KiB",
+            "sharedSizeInfo": {}
         }
     ],
     // 项目资源详细体积报告
