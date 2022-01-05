@@ -107,9 +107,6 @@ class SizeReportPlugin {
         sideEffect && sideEffect(module, entryModule)
         modulesSet.add(module)
         walkDependencies(module.dependencies)
-        module.blocks.forEach((block) => {
-          walkDependencies(block.dependencies)
-        })
         module.variables.forEach((variable) => {
           walkDependencies(variable.dependencies)
         })
@@ -161,9 +158,6 @@ class SizeReportPlugin {
           walkChildren(module.children)
         }
         walkDependencies(depModule.dependencies)
-        depModule.blocks.forEach((block) => {
-          walkDependencies(block.dependencies)
-        })
         depModule.variables.forEach((variable) => {
           walkDependencies(variable.dependencies)
         })
