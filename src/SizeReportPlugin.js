@@ -158,9 +158,6 @@ class SizeReportPlugin {
           walkChildren(module.children)
         }
         walkDependencies(depModule.dependencies)
-        depModule.variables.forEach((variable) => {
-          walkDependencies(variable.dependencies)
-        })
       }
 
       walk(entryPageNode)
